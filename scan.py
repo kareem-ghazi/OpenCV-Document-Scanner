@@ -7,6 +7,9 @@
 
 # Scanned images will be output to directory named 'output'
 
+import re
+import PIL.Image
+from pdf2image import convert_from_path
 from pyimagesearch import transform
 from pyimagesearch import imutils
 from scipy.spatial import distance as dist
@@ -263,70 +266,84 @@ class DocumentScanner(object):
         new_points = np.array([[p] for p in new_points], dtype = "int32")
         return new_points.reshape(4, 2)
 
-    def scan(self, image_path):
+    def scan(self, document_path):
         RESCALED_HEIGHT = 500.0
         OUTPUT_DIR = 'output'
 
+        images = []
+        
         # load the image and compute the ratio of the old height
         # to the new height, clone it, and resize it
-        image = cv2.imread(image_path)
+        if ".pdf" in document_path:
+            images.extend(convert_from_path(document_path, 500).copy())
+            
+            for index, image in enumerate(images):
+                images[index] = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+        elif any(ext in document_path for ext in (".png", ".jpg")):
+            images.append(cv2.imread(document_path))
 
-        assert(image is not None)
+        assert(images is not None)
 
-        ratio = image.shape[0] / RESCALED_HEIGHT
-        orig = image.copy()
-        rescaled_image = imutils.resize(image, height = int(RESCALED_HEIGHT))
+        for count, image in enumerate(images):
+            assert(image is not None)
+            
+            ratio = image.shape[0] / RESCALED_HEIGHT
+            orig = image.copy()
+            rescaled_image = imutils.resize(image, height = int(RESCALED_HEIGHT))
 
-        # get the contour of the document
-        screenCnt = self.get_contour(rescaled_image)
+            # get the contour of the document
+            screenCnt = self.get_contour(rescaled_image)
 
-        if self.interactive:
-            screenCnt = self.interactive_get_contour(screenCnt, rescaled_image)
+            # apply the perspective transformation
+            warped = transform.four_point_transform(orig, screenCnt * ratio)
 
-        # apply the perspective transformation
-        warped = transform.four_point_transform(orig, screenCnt * ratio)
+            # convert the warped image to grayscale
+            gray = cv2.cvtColor(warped, cv2.COLOR_BGR2GRAY)
 
-        # convert the warped image to grayscale
-        gray = cv2.cvtColor(warped, cv2.COLOR_BGR2GRAY)
+            # sharpen image
+            sharpen = cv2.GaussianBlur(gray, (0,0), 3)
+            sharpen = cv2.addWeighted(gray, 1.5, sharpen, -0.5, 0)
 
-        # sharpen image
-        sharpen = cv2.GaussianBlur(gray, (0,0), 3)
-        sharpen = cv2.addWeighted(gray, 1.5, sharpen, -0.5, 0)
+            # apply adaptive threshold to get black and white effect
+            thresh = cv2.adaptiveThreshold(sharpen, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 21, 15)
 
-        # apply adaptive threshold to get black and white effect
-        thresh = cv2.adaptiveThreshold(sharpen, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 21, 15)
+            # save the transformed image
+            basename = os.path.basename(re.sub(r'\.(pdf|png|jpg)', '', document_path, flags=re.IGNORECASE))
+            print(basename)
+            cv2.imwrite(OUTPUT_DIR + '/' + str(count + 1) + "_" + basename + ".png", thresh)
+            print("Proccessed " + basename)
 
-        # save the transformed image
-        basename = os.path.basename(image_path)
-        cv2.imwrite(OUTPUT_DIR + '/' + basename, thresh)
-        print("Proccessed " + basename)
 
+# if __name__ == "__main__":
+#     ap = argparse.ArgumentParser()
+#     group = ap.add_mutually_exclusive_group(required=True)
+#     group.add_argument("--images", help="Directory of images to be scanned")
+#     group.add_argument("--image", help="Path to single image to be scanned")
+#     ap.add_argument("-i", action='store_true',
+#         help = "Flag for manually verifying and/or setting document corners")
+
+#     args = vars(ap.parse_args())
+#     im_dir = args["images"]
+#     im_file_path = args["image"]
+#     interactive_mode = args["i"]
+
+#     scanner = DocumentScanner(interactive_mode)
+
+#     valid_formats = [".jpg", ".jpeg", ".jp2", ".png", ".bmp", ".tiff", ".tif"]
+
+#     get_ext = lambda f: os.path.splitext(f)[1].lower()
+
+#     # Scan single image specified by command line argument --image <IMAGE_PATH>
+#     if im_file_path:
+#         scanner.scan(im_file_path)
+
+#     # Scan all valid images in directory specified by command line argument --images <IMAGE_DIR>
+#     else:
+#         im_files = [f for f in os.listdir(im_dir) if get_ext(f) in valid_formats]
+#         for im in im_files:
+#             scanner.scan(im_dir + '/' + im)
 
 if __name__ == "__main__":
-    ap = argparse.ArgumentParser()
-    group = ap.add_mutually_exclusive_group(required=True)
-    group.add_argument("--images", help="Directory of images to be scanned")
-    group.add_argument("--image", help="Path to single image to be scanned")
-    ap.add_argument("-i", action='store_true',
-        help = "Flag for manually verifying and/or setting document corners")
-
-    args = vars(ap.parse_args())
-    im_dir = args["images"]
-    im_file_path = args["image"]
-    interactive_mode = args["i"]
-
-    scanner = DocumentScanner(interactive_mode)
-
-    valid_formats = [".jpg", ".jpeg", ".jp2", ".png", ".bmp", ".tiff", ".tif"]
-
-    get_ext = lambda f: os.path.splitext(f)[1].lower()
-
-    # Scan single image specified by command line argument --image <IMAGE_PATH>
-    if im_file_path:
-        scanner.scan(im_file_path)
-
-    # Scan all valid images in directory specified by command line argument --images <IMAGE_DIR>
-    else:
-        im_files = [f for f in os.listdir(im_dir) if get_ext(f) in valid_formats]
-        for im in im_files:
-            scanner.scan(im_dir + '/' + im)
+    ds = DocumentScanner()
+    
+    ds.scan("C:\\Users\\kareemghazi\\Desktop\\OpenCV-Document-Scanner\\New Doc 06-29-2025 13.01.pdf")
