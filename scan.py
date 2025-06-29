@@ -115,10 +115,10 @@ class DocScanner(object):
                 x1, y1, x2, y2, _ = line
                 if abs(x2 - x1) > abs(y2 - y1):
                     (x1, y1), (x2, y2) = sorted(((x1, y1), (x2, y2)), key=lambda pt: pt[0])
-                    cv2.line(horizontal_lines_canvas, (max(x1 - 5, 0), y1), (min(x2 + 5, img.shape[1] - 1), y2), 255, 2)
+                    cv2.line(horizontal_lines_canvas, (max(x1 - 5, 0), y1), (min(x2 + 5, img.shape[1] - 1), y2), (255, ), 2)
                 else:
                     (x1, y1), (x2, y2) = sorted(((x1, y1), (x2, y2)), key=lambda pt: pt[1])
-                    cv2.line(vertical_lines_canvas, (x1, max(y1 - 5, 0)), (x2, min(y2 + 5, img.shape[0] - 1)), 255, 2)
+                    cv2.line(vertical_lines_canvas, (x1, max(y1 - 5, 0)), (x2, min(y2 + 5, img.shape[0] - 1)), (255, ), 2)
 
             lines = []
 
@@ -133,7 +133,7 @@ class DocScanner(object):
                 left_y = int(np.average(contour[contour[:, 0] == min_x][:, 1]))
                 right_y = int(np.average(contour[contour[:, 0] == max_x][:, 1]))
                 lines.append((min_x, left_y, max_x, right_y))
-                cv2.line(horizontal_lines_canvas, (min_x, left_y), (max_x, right_y), 1, 1)
+                cv2.line(horizontal_lines_canvas, (min_x, left_y), (max_x, right_y), (1, ), 1)
                 corners.append((min_x, left_y))
                 corners.append((max_x, right_y))
 
@@ -148,7 +148,7 @@ class DocScanner(object):
                 top_x = int(np.average(contour[contour[:, 1] == min_y][:, 0]))
                 bottom_x = int(np.average(contour[contour[:, 1] == max_y][:, 0]))
                 lines.append((top_x, min_y, bottom_x, max_y))
-                cv2.line(vertical_lines_canvas, (top_x, min_y), (bottom_x, max_y), 1, 1)
+                cv2.line(vertical_lines_canvas, (top_x, min_y), (bottom_x, max_y), (1, ), 1)
                 corners.append((top_x, min_y))
                 corners.append((bottom_x, max_y))
 
@@ -264,7 +264,6 @@ class DocScanner(object):
         return new_points.reshape(4, 2)
 
     def scan(self, image_path):
-
         RESCALED_HEIGHT = 500.0
         OUTPUT_DIR = 'output'
 
