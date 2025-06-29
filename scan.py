@@ -22,7 +22,7 @@ from pylsd.lsd import lsd
 import argparse
 import os
 
-class DocScanner(object):
+class DocumentScanner(object):
     """An image scanner"""
 
     def __init__(self, interactive=False, MIN_QUAD_AREA_RATIO=0.25, MAX_QUAD_ANGLE_RANGE=40):
@@ -315,7 +315,7 @@ if __name__ == "__main__":
     im_file_path = args["image"]
     interactive_mode = args["i"]
 
-    scanner = DocScanner(interactive_mode)
+    scanner = DocumentScanner(interactive_mode)
 
     valid_formats = [".jpg", ".jpeg", ".jp2", ".png", ".bmp", ".tiff", ".tif"]
 
